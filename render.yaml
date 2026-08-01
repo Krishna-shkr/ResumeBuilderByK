@@ -8,11 +8,10 @@ services:
     plan: free
     buildCommand: npm install
     startCommand: npm start
-    # Persist saved resume edits (data/resume.json) across restarts/deploys.
-    disk:
-      name: resume-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    # NOTE: no persistent disk — Render's free tier doesn't support disks.
+    # Saved resume edits live in data/resume.json on the ephemeral filesystem and
+    # reset to resume.seed.json whenever the free service restarts/redeploys.
+    # (Upgrade to a paid plan + re-add a `disk:` block to persist edits.)
     envVars:
       - key: NODE_VERSION
         value: 20.18.0
