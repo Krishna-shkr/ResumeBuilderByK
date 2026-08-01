@@ -9,8 +9,26 @@ const { tailorResume, availableChoices } = require('./tailor');
 const { isValidResume } = require('./schema');
 
 const PORT = process.env.PORT || 3000;
-const DATA_PATH = path.join(__dirname, '..', 'data', 'resume.json');
-const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+const ROOT = path.join(__dirname, '..');
+const DATA_DIR = path.join(ROOT, 'data');
+const DATA_PATH = path.join(DATA_DIR, 'resume.json');
+// Seed lives at project ROOT (outside data/) so a mounted persistent disk over
+// data/ cannot hide it. See render.yaml.
+const SEED_PATH = path.join(ROOT, 'resume.seed.json');
+const PUBLIC_DIR = path.join(ROOT, 'public');
+
+// On a fresh host (e.g. Render's empty persistent disk mounted over data/),
+// resume.json won't exist yet. Seed it from the bundled seed so the app has
+// content on first boot. Never overwrites an existing file.
+try {
+  if (!fs.existsSync(DATA_PATH) && fs.existsSync(SEED_PATH)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.copyFileSync(SEED_PATH, DATA_PATH);
+    console.log('  Seeded data/resume.json from resume.seed.json');
+  }
+} catch (e) {
+  console.error('  Could not seed resume.json:', e.message);
+}
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));

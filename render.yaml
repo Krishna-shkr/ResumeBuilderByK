@@ -1,0 +1,26 @@
+# Render Blueprint — one-click infra config for this app.
+# Render reads this on deploy. Secrets (API keys) are NOT here — set them in the
+# dashboard so they never touch git.
+services:
+  - type: web
+    name: resume-builder-by-k
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    # Persist saved resume edits (data/resume.json) across restarts/deploys.
+    disk:
+      name: resume-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      # Puppeteer downloads Chromium into the project cache during build.
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/src/.cache/puppeteer
+      # Set these two in the Render dashboard (Environment tab) — do NOT commit.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false

@@ -4,7 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const SEED_PATH = path.join(__dirname, '..', 'data', 'resume.seed.json');
+const SEED_PATH = path.join(__dirname, '..', 'resume.seed.json'); // seed lives at project root
 const DATA_PATH = path.join(__dirname, '..', 'data', 'resume.json');
 
 // Snapshot the current resume before a destructive test, restore it after.
