@@ -1,0 +1,74 @@
+{
+  "name": "KRISHNA SANAKA",
+  "legalName": "Sanaka Hela Krishna Rao",
+  "title": "Junior Software Engineer | Full-Stack Developer",
+  "contact": "Hyderabad, India · krishnasanaka25@gmail.com · +91 6300325912",
+  "cert": "Microsoft Azure Certified Developer (AZ-204)",
+  "summary": "Junior Software Engineer with 2 years of full-stack experience building secure, cloud-native applications at a startup. Work end-to-end across .NET Core, Node.js, Angular, MongoDB, SQL Server, and Microsoft Azure. Designed and shipped a multi-tenant credentials platform (IdSecure) and extended it into a production client deployment (Yashcard) with multi-channel notification delivery, blockchain-anchored security, and streaming Azure Functions data pipelines.",
+  "skills": [
+    ["Languages", "C#, JavaScript, TypeScript, HTML5, CSS3, SQL"],
+    ["Backend", ".NET Core, ASP.NET Core Web API, Node.js, REST APIs"],
+    ["Frontend", "Angular 18+, React, RxJS, Angular Material"],
+    ["Databases", "MongoDB (Mongoose), Microsoft SQL Server, Azure Cosmos DB"],
+    ["Cloud (Azure)", "App Services, Azure Functions, Service Bus, SignalR Service, Notification Hub, Blob Storage, Application Insights, Azure DevOps"],
+    ["Notifications & Realtime", "SignalR, WebSockets, Azure Notification Hub, Firebase Cloud Messaging, SendGrid, Twilio"],
+    ["Security", "JWT, OAuth 2.0, RSA encryption, blockchain anchoring (Polygon / Ethereum smart contracts), IPFS, Merkle proofs"],
+    ["Tools & DevOps", "pdf-lib, Puppeteer, ExcelJS, Docker, CI/CD (Azure DevOps), Git/GitHub, Postman, Swagger"]
+  ],
+  "experience": [
+    {
+      "role": "Junior Software Engineer",
+      "company": "Sapphirus Systems Pvt Ltd",
+      "location": "Hyderabad, India",
+      "dates": "January 2024 – Present",
+      "bullets": [
+        "Own features end-to-end across the stack — .NET Core and Node.js services, Angular front-ends, Azure infrastructure, and third-party integrations — in a small startup team.",
+        "Designed a hybrid backend pairing .NET Core for real-time and orchestration with Node.js for integrations and async processing.",
+        "Built core wallet, transaction, and identity APIs that power both products in production.",
+        "Drive code reviews, debugging, and performance tuning across services owned by the team."
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "IdSecure — Multi-Tenant Digital Credentials Platform (Product)",
+      "stack": ".NET Core · Node.js · Angular · MongoDB · SQL Server · Azure · Polygon · IPFS",
+      "bullets": [
+        "Designed multi-tenant architecture so a single deployment serves multiple client organizations with isolated data.",
+        "Built the wallet and transaction primitives — creation, lifecycle, blockchain anchoring on Polygon, and audit trail.",
+        "Engineered the security layer: IPFS for tamper-evident document storage, Merkle proofs for verification, and RSA-encrypted user identifiers so internal logs never expose PII.",
+        "Implemented authentication and authorization with JWT and OAuth 2.0; delivered Angular admin UI with dynamic dashboards and configuration management."
+      ]
+    },
+    {
+      "name": "Yashcard — Client Deployment of IdSecure (Education sector)",
+      "stack": ".NET Core · Node.js · Angular · React · Azure Functions · Service Bus · SignalR · SendGrid · Twilio · FCM",
+      "bullets": [
+        "Architected a multi-channel notification orchestration service in ASP.NET Core: in-app via SignalR, push via Azure Notification Hub with FCM fallback, email via SendGrid, SMS via Twilio — with per-channel background workers and bulk job tracking.",
+        "Built Excel-driven student onboarding using Azure Functions blob triggers that validate and organize incoming data, then fan rows into Service Bus queues for parallel wallet and transaction creation.",
+        "Built an on-demand export pipeline streaming Excel and PDF extracts via Azure Functions, with chunked writes through ExcelJS and Service Bus retries so memory stays flat regardless of dataset size.",
+        "Developed smart-card and certificate generation with pdf-lib, Puppeteer, and Jimp, embedding QR codes that link back to a verifier; outputs hashed and pinned to IPFS.",
+        "Integrated MKCL webhook ingest with a dynamically configurable field-mapping system, managed by non-developers through an Angular UI.",
+        "Tuned end-to-end retry, idempotency, and observability via Application Insights so failures are recoverable rather than silent."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Tech, Electrical & Electronics Engineering",
+      "school": "Swarnandhra College of Engineering and Technology, Narsapur",
+      "detail": "CGPA: 7.5 / 10 · 2020 – 2023"
+    },
+    {
+      "degree": "Diploma, Electrical & Electronics Engineering",
+      "school": "AANM & VVRSR Polytechnic College, Gudlavalleru",
+      "detail": "Percentage: 64.5% · 2017 – 2020"
+    }
+  ],
+  "educationNote": "Self-taught full-stack engineering alongside EEE coursework; transitioned into software full-time on graduation.",
+  "certifications": ["Microsoft Certified: Azure Developer Associate (AZ-204)"],
+  "additional": [
+    ["Languages", "English, Telugu, Hindi"]
+  ],
+  "hiddenSkills": []
+}

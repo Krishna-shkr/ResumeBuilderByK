@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resume Tailor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ===== Top bar ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">Resume Tailor</span>
+    </div>
+
+    <div class="topbar-center">
+      <button id="pageBadge" class="page-badge is-loading" type="button"
+              title="Rendered page count from the export engine" aria-live="polite">
+        <span class="dot"></span><span class="page-badge-text">Measuring…</span>
+      </button>
+    </div>
+
+    <div class="topbar-right">
+      <div class="save-indicator" id="saveIndicator" role="status" aria-live="polite">
+        <span class="save-dot"></span><span id="saveText">Loading…</span>
+      </div>
+      <button id="helpBtn" class="icon-btn" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
+      <button id="themeBtn" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle light / dark theme">
+        <span class="theme-icon"></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Global toast (errors / announcements) ===== -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- ===== Workspace ===== -->
+  <main class="workspace">
+    <!-- LEFT: control column -->
+    <section class="col-left" aria-label="Controls and editor">
+
+      <!-- JD / Tailor panel -->
+      <div class="panel jd-panel">
+        <div class="panel-head">
+          <h2>Job Description</h2>
+          <span class="panel-sub">Paste it, then tailor your real content to match.</span>
+        </div>
+        <textarea id="jd" class="jd-input" placeholder="Paste the full job description here…"
+                  spellcheck="false" aria-label="Job description"></textarea>
+        <div class="jd-bar">
+          <div class="model-wrap">
+            <label for="modelSelect" class="model-label">Model</label>
+            <select id="modelSelect" class="model-select" title="AI model (Auto falls through free providers)">
+              <option value="">Auto</option>
+            </select>
+          </div>
+          <button id="tailorBtn" class="btn btn-accent tailor-btn" type="button">
+            <span class="btn-label">Tailor</span>
+            <kbd class="btn-kbd">Ctrl↵</kbd>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div id="usedModel" class="used-model" aria-live="polite"></div>
+      </div>
+
+      <!-- Editor cards -->
+      <div class="editor" id="editor">
+        <!-- section cards injected/authored below; content filled by JS -->
+
+        <details class="card" data-section="header" open>
+          <summary class="card-head"><span class="chev"></span><h3>Header</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body">
+            <div class="field"><label>Full name <span class="lock" title="Identity — not reworded by AI">locked</span></label><input data-path="name" /></div>
+            <div class="field"><label>Legal name</label><input data-path="legalName" /></div>
+            <div class="field"><label>Title</label><input data-path="title" /></div>
+            <div class="field"><label>Contact line</label><input data-path="contact" /></div>
+            <div class="field"><label>Certification line</label><input data-path="cert" /></div>
+          </div>
+        </details>
+
+        <details class="card" data-section="summary" open>
+          <summary class="card-head"><span class="chev"></span><h3>Summary</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body">
+            <div class="field"><textarea data-path="summary" class="grow" rows="3"></textarea></div>
+          </div>
+        </details>
+
+        <details class="card" data-section="skills" open>
+          <summary class="card-head"><span class="chev"></span><h3>Skills</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body"><div id="skills"></div></div>
+        </details>
+
+        <details class="card" data-section="experience" open>
+          <summary class="card-head"><span class="chev"></span><h3>Experience</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body"><div id="experience"></div></div>
+        </details>
+
+        <details class="card" data-section="projects" open>
+          <summary class="card-head"><span class="chev"></span><h3>Projects</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body"><div id="projects"></div></div>
+        </details>
+
+        <details class="card" data-section="education">
+          <summary class="card-head"><span class="chev"></span><h3>Education</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body">
+            <div id="education"></div>
+            <div class="field"><label>Education note</label><textarea data-path="educationNote" class="grow" rows="2"></textarea></div>
+          </div>
+        </details>
+
+        <details class="card" data-section="certifications">
+          <summary class="card-head"><span class="chev"></span><h3>Certifications &amp; Languages</h3><span class="card-meta" data-count></span></summary>
+          <div class="card-body">
+            <div class="sub-label">Certifications</div>
+            <div id="certifications"></div>
+            <div class="sub-label">Additional</div>
+            <div id="additional"></div>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- RIGHT: preview -->
+    <section class="col-right" aria-label="Live preview">
+      <div class="preview-head">
+        <div class="preview-title">Preview <span class="preview-sub">export engine · ground truth</span></div>
+        <div class="zoom-controls" role="group" aria-label="Zoom">
+          <button id="zoomFit" class="zoom-btn is-active" type="button">Fit</button>
+          <button id="zoom100" class="zoom-btn" type="button">100%</button>
+        </div>
+      </div>
+      <div class="preview-stage" id="previewStage">
+        <div class="preview-frame-wrap" id="previewFrameWrap">
+          <iframe id="preview" title="Resume preview" scrolling="no"></iframe>
+          <div class="page-break" id="pageBreak" hidden><span>page 2</span></div>
+        </div>
+        <div class="preview-loading" id="previewLoading" hidden><span class="spinner"></span> Rendering…</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== Sticky export bar ===== -->
+  <footer class="export-bar">
+    <div class="export-left">
+      <span id="overflowWarn" class="overflow-inline" hidden></span>
+    </div>
+    <div class="export-actions">
+      <button id="saveBtn" class="btn btn-ghost" type="button"><span class="btn-label">Save</span><kbd class="btn-kbd">Ctrl S</kbd></button>
+      <button id="docxBtn" class="btn btn-ghost export-btn" type="button"><span class="btn-label">DOCX</span><span class="spinner" aria-hidden="true"></span></button>
+      <button id="pdfBtn" class="btn btn-accent export-btn" type="button"><span class="btn-label">PDF</span><kbd class="btn-kbd">Ctrl E</kbd><span class="spinner" aria-hidden="true"></span></button>
+    </div>
+  </footer>
+
+  <!-- ===== Diff review modal ===== -->
+  <div id="diffModal" class="modal" hidden>
+    <div class="modal-box diff-modal" role="dialog" aria-modal="true" aria-labelledby="diffTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="diffTitle">Review tailored changes</h2>
+          <p class="modal-sub">The AI only rewords and reorders your real content. Nothing applies until you confirm.</p>
+        </div>
+        <button id="diffClose" class="icon-btn" type="button" aria-label="Close">✕</button>
+      </div>
+
+      <div class="modal-scroll">
+        <div id="violations" class="violations" hidden></div>
+        <div id="diffBody" class="diff-body"></div>
+        <div id="hideSuggest" class="hide-suggest" hidden></div>
+      </div>
+
+      <div class="modal-actions">
+        <span id="diffSummary" class="diff-summary"></span>
+        <div class="modal-actions-btns">
+          <button id="diffCancel" class="btn btn-ghost" type="button">Discard</button>
+          <button id="diffApply" class="btn btn-accent" type="button">Apply changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Shortcuts cheatsheet ===== -->
+  <div id="helpModal" class="modal" hidden>
+    <div class="modal-box help-modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modal-head">
+        <h2 id="helpTitle">Keyboard shortcuts</h2>
+        <button id="helpClose" class="icon-btn" type="button" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-scroll">
+        <table class="shortcut-table">
+          <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Tailor to job description</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save resume</td></tr>
+          <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Export PDF</td></tr>
+          <tr><td><kbd>Esc</kbd></td><td>Close dialog</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Toggle this cheatsheet</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
