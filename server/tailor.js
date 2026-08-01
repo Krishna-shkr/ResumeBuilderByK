@@ -14,16 +14,21 @@ const { generate, isAvailable, PROVIDERS } = require('./providers');
 // still works. Each model also has its own quota bucket, so a 429 on one recovers
 // by falling to the next. Free OpenRouter models use the ":free" suffix.
 // OpenRouter free slugs verified live via GET /api/v1/models (pricing.prompt === 0).
-// Free slugs change over time — re-check with:
+// Free slugs change often — models get retired to paid without notice
+// (llama-3.3-70b, qwen3-next, deepseek-v3.1 were all free, now gone). Re-check with:
 //   curl https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY"
-// and keep only ids ending in ":free". (deepseek-chat-v3.1:free was retired to paid.)
+// and keep only ids ending in ":free" that actually return 200.
 const CHAIN = [
+  // Google Gemini (each free-tier model has its own quota bucket)
   { provider: 'gemini', model: process.env.GEMINI_MODEL || 'gemini-flash-latest' },
   { provider: 'gemini', model: 'gemini-2.5-flash' },
   { provider: 'gemini', model: 'gemini-2.0-flash' },
-  { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct:free' },
-  { provider: 'openrouter', model: 'qwen/qwen3-next-80b-a3b-instruct:free' },
+  // OpenRouter free models — verified live Aug 2026
+  { provider: 'openrouter', model: 'nvidia/nemotron-3-super-120b-a12b:free' },
+  { provider: 'openrouter', model: 'google/gemma-4-26b-a4b-it:free' },
   { provider: 'openrouter', model: 'google/gemma-4-31b-it:free' },
+  { provider: 'openrouter', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
+  { provider: 'openrouter', model: 'nvidia/nemotron-nano-9b-v2:free' },
 ];
 
 // The set of concrete choices a user may force from the UI (Auto = the full chain).
