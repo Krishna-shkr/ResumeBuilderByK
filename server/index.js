@@ -4,9 +4,10 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 
-const { buildHtml, buildDocx, fitPdf, measurePages, MAX_PAGES } = require('./resumeEngine');
+const { buildHtml, buildDocx, fitPdf, measurePages, MAX_PAGES, TEMPLATES } = require('./resumeEngine');
 const { tailorResume, availableChoices } = require('./tailor');
 const { isValidResume } = require('./schema');
+const { fetchJdFromUrl } = require('./fetchJd');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = path.join(__dirname, '..');
@@ -72,12 +73,31 @@ app.post('/api/resume', (req, res) => {
 app.post('/api/preview', (req, res) => {
   const r = req.body;
   if (!isValidResume(r)) return res.status(400).json({ error: 'Invalid resume shape.' });
-  res.type('html').send(buildHtml(r));
+  res.type('html').send(buildHtml(r, 1, req.query.template));
 });
 
 // ---- list configured AI models for the UI dropdown ----
 app.get('/api/models', (req, res) => {
   res.json({ choices: availableChoices() });
+});
+
+// ---- list available download templates ----
+app.get('/api/templates', (req, res) => {
+  res.json({ templates: TEMPLATES });
+});
+
+// ---- fetch a JD from a job-posting URL (best-effort; many sites block bots) ----
+app.post('/api/fetch-jd', async (req, res) => {
+  const { url } = req.body || {};
+  if (!url || !String(url).trim()) return res.status(400).json({ error: 'No URL provided.' });
+  try {
+    const { text } = await fetchJdFromUrl(String(url).trim());
+    res.json({ text });
+  } catch (e) {
+    // BLOCKED / TOO_SHORT get 422 so the UI can show the "paste instead" hint.
+    const status = e.code === 'BAD_URL' ? 400 : (e.code === 'BLOCKED' || e.code === 'TOO_SHORT') ? 422 : 502;
+    res.status(status).json({ error: e.message, code: e.code || 'FETCH_FAILED' });
+  }
 });
 
 // ---- tailor to a job description ----
@@ -101,7 +121,7 @@ app.post('/api/pagecount', async (req, res) => {
   const r = req.body;
   if (!isValidResume(r)) return res.status(400).json({ error: 'Invalid resume shape.' });
   try {
-    const { pages, scale, fit } = await measurePages(r);
+    const { pages, scale, fit } = await measurePages(r, req.query.template);
     res.json({ pages, scale, fit, maxPages: MAX_PAGES, suggestion: fit ? null : trimSuggestion(r) });
   } catch (e) {
     res.status(500).json({ error: 'Page measurement failed: ' + e.message });
@@ -126,12 +146,12 @@ function trimSuggestion(r) {
 
 // ---- export PDF / DOCX ----
 app.post('/api/export', async (req, res) => {
-  const { resume, format } = req.body || {};
+  const { resume, format, template } = req.body || {};
   if (!isValidResume(resume)) return res.status(400).json({ error: 'Invalid resume shape.' });
   const base = safeName(resume) + '_Resume';
   try {
     if (format === 'pdf') {
-      const { buffer, pages, fit } = await fitPdf(resume);
+      const { buffer, pages, fit } = await fitPdf(resume, template);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${base}.pdf"`);
       res.setHeader('X-Resume-Pages', String(pages));

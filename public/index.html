@@ -44,9 +44,19 @@
       <div class="panel jd-panel">
         <div class="panel-head">
           <h2>Job Description</h2>
-          <span class="panel-sub">Paste it, then tailor your real content to match.</span>
+          <span class="panel-sub">Paste the JD, or fetch it from a job link.</span>
         </div>
-        <textarea id="jd" class="jd-input" placeholder="Paste the full job description here…"
+        <div class="jd-url-row">
+          <input id="jdUrl" class="jd-url" type="url" spellcheck="false"
+                 placeholder="Paste a job link (company page, Indeed, Wellfound…)"
+                 aria-label="Job posting URL" />
+          <button id="fetchJdBtn" class="btn btn-ghost fetch-btn" type="button">
+            <span class="btn-label">Fetch</span>
+            <span class="spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div id="jdFetchNote" class="jd-fetch-note" hidden></div>
+        <textarea id="jd" class="jd-input" placeholder="…or paste the full job description here"
                   spellcheck="false" aria-label="Job description"></textarea>
         <div class="jd-bar">
           <div class="model-wrap">
@@ -71,7 +81,7 @@
         <details class="card" data-section="header" open>
           <summary class="card-head"><span class="chev"></span><h3>Header</h3><span class="card-meta" data-count></span></summary>
           <div class="card-body">
-            <div class="field"><label>Full name <span class="lock" title="Identity — not reworded by AI">locked</span></label><input data-path="name" /></div>
+            <div class="field"><label>Full name</label><input data-path="name" /></div>
             <div class="field"><label>Legal name</label><input data-path="legalName" /></div>
             <div class="field"><label>Title</label><input data-path="title" /></div>
             <div class="field"><label>Contact line</label><input data-path="contact" /></div>
@@ -125,6 +135,10 @@
     <section class="col-right" aria-label="Live preview">
       <div class="preview-head">
         <div class="preview-title">Preview <span class="preview-sub">export engine · ground truth</span></div>
+        <div class="tpl-controls" role="group" aria-label="Resume template">
+          <label for="templateSelect" class="tpl-label">Template</label>
+          <select id="templateSelect" class="tpl-select" title="Choose the design used for the live preview and downloads"></select>
+        </div>
         <div class="zoom-controls" role="group" aria-label="Zoom">
           <button id="zoomFit" class="zoom-btn is-active" type="button">Fit</button>
           <button id="zoom100" class="zoom-btn" type="button">100%</button>

@@ -41,7 +41,77 @@ function visibleSkills(r) {
 // `scale` (0.80–1.0) uniformly shrinks font size and vertical spacing so the
 // auto-fit routine can compress content onto 2 pages without changing layout
 // structure. scale = 1 is the original design.
-function buildHtml(r, scale = 1) {
+// Available download templates. The body markup is identical across all of them
+// (so the 2-page auto-fit works everywhere) — only this <style> block differs.
+// Available download templates:
+//   classic    — original single-column design
+//   twocolumn  — sidebar (skills/education/certs) + main (summary/exp/projects)
+//   ats        — clean, plain single-column, maximally parser-friendly for portals
+const TEMPLATES = ['classic', 'twocolumn', 'ats'];
+
+function templateStyle(template, s, sp) {
+  const tpl = TEMPLATES.includes(template) ? template : 'classic';
+  const px = (n) => (n * sp).toFixed(1) + 'px';
+  const pt = (n) => (n * s).toFixed(2) + 'pt';
+
+  // Shared header + list rules used by every template.
+  const common = `
+  @page { size: Letter; margin: 0.7in; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: #1f1f1f;
+    font-family: Calibri, Arial, "Helvetica Neue", Helvetica, sans-serif;
+    font-size: ${pt(11.5)}; line-height: ${(1.4 * sp).toFixed(3)}; }
+  h1 { font-size: ${pt(24)}; font-weight: 700; margin: 0; letter-spacing: 0.4px; }
+  .legal { font-style: italic; color: #555; margin: ${px(2)} 0 ${px(6)}; font-size: ${pt(11)}; }
+  .title { font-weight: 600; margin: 0 0 2px; font-size: ${pt(12)}; }
+  .contact, .cert { margin: 1px 0; font-size: ${pt(11)}; color: #333; }
+  ul { padding: 0; }
+  li { margin: ${px(3)} 0; }
+  .skill { margin: ${px(4)} 0; }
+  .job, .project, .edu { margin-bottom: ${px(8)}; }
+  .role, .projectName { font-weight: 700; margin: ${px(6)} 0 1px; font-size: ${pt(12)}; }
+  .meta, .stack { color: #444; margin: 1px 0 ${px(3)}; font-size: ${pt(11)}; }
+  .eduDegree { margin: ${px(3)} 0; font-size: ${pt(11.5)}; }
+  .eduDetail { color: #444; }
+  .eduNote { font-style: italic; color: #555; margin-top: ${px(5)}; font-size: ${pt(11)}; }
+  .addl { margin: ${px(3)} 0; }
+  p { margin: ${px(4)} 0; }`;
+
+  if (tpl === 'ats') {
+    // Plain, high-contrast, no rules/colors that confuse ATS parsers.
+    return `${common}
+  hr.rule { display: none; }
+  header { margin-bottom: ${px(8)}; }
+  h2 { font-size: ${pt(12)}; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px;
+    margin: ${px(14)} 0 ${px(6)}; color: #000; }
+  ul { margin: ${px(4)} 0 ${px(8)} 18px; }
+  body { color: #111; }`;
+  }
+
+  if (tpl === 'twocolumn') {
+    // Sidebar + main column. Left rule accent on the sidebar.
+    return `${common}
+  hr.rule { border: 0; border-top: 1px solid #c8c8c8; margin: ${px(12)} 0 ${px(10)}; }
+  h2 { font-size: ${pt(12)}; text-transform: uppercase; letter-spacing: 0.5px;
+    margin: ${px(2)} 0 ${px(6)}; padding-bottom: 2px; border-bottom: 1.5px solid #2b2f6b; color: #2b2f6b; }
+  ul { margin: ${px(4)} 0 ${px(8)} 16px; }
+  .twocol { display: flex; gap: ${px(20)}; align-items: flex-start; }
+  .sidebar { flex: 0 0 32%; }
+  .maincol { flex: 1; }
+  .sidebar h2:first-child { margin-top: 0; }
+  .maincol h2:first-child { margin-top: 0; }
+  .skill { margin: ${px(3)} 0; font-size: ${pt(10.5)}; }`;
+  }
+
+  // classic (default) — the original design
+  return `${common}
+  hr.rule { border: 0; border-top: 1px solid #c8c8c8; margin: ${px(12)} 0 ${px(8)}; }
+  h2 { font-size: ${pt(13)}; text-transform: uppercase; letter-spacing: 0.5px;
+    margin: ${px(16)} 0 ${px(7)}; padding-bottom: 3px; border-bottom: 1px solid #d8d8d8; color: #1f1f1f; }
+  ul { margin: ${px(5)} 0 ${px(8)} 20px; }`;
+}
+
+function buildHtml(r, scale = 1, template = 'classic') {
   const s = Math.max(0.8, Math.min(1, scale));
   const base = (11.5 * s).toFixed(2);   // body font size in pt
   const sp = s;                          // spacing multiplier
@@ -97,52 +167,7 @@ function buildHtml(r, scale = 1) {
 <head>
 <meta charset="utf-8" />
 <title>${escape(r.name)} — Resume</title>
-<style>
-  @page { size: Letter; margin: 0.7in; }
-  * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    color: #1f1f1f;
-    font-family: Calibri, Arial, "Helvetica Neue", Helvetica, sans-serif;
-    font-size: ${base}pt;
-    line-height: ${(1.4 * sp).toFixed(3)};
-  }
-  h1 {
-    font-size: ${(24 * s).toFixed(2)}pt;
-    font-weight: 700;
-    margin: 0;
-    letter-spacing: 0.4px;
-  }
-  .legal { font-style: italic; color: #555; margin: ${(2 * sp).toFixed(1)}px 0 ${(6 * sp).toFixed(1)}px; font-size: ${(11 * s).toFixed(2)}pt; }
-  .title { font-weight: 600; margin: 0 0 2px; font-size: ${(12 * s).toFixed(2)}pt; }
-  .contact, .cert { margin: 1px 0; font-size: ${(11 * s).toFixed(2)}pt; color: #333; }
-  hr.rule {
-    border: 0;
-    border-top: 1px solid #c8c8c8;
-    margin: ${(12 * sp).toFixed(1)}px 0 ${(8 * sp).toFixed(1)}px;
-  }
-  h2 {
-    font-size: ${(13 * s).toFixed(2)}pt;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin: ${(16 * sp).toFixed(1)}px 0 ${(7 * sp).toFixed(1)}px;
-    padding-bottom: 3px;
-    border-bottom: 1px solid #d8d8d8;
-    color: #1f1f1f;
-  }
-  p { margin: ${(4 * sp).toFixed(1)}px 0; }
-  ul { margin: ${(5 * sp).toFixed(1)}px 0 ${(8 * sp).toFixed(1)}px 20px; padding: 0; }
-  li { margin: ${(3 * sp).toFixed(1)}px 0; }
-  .skill { margin: ${(4 * sp).toFixed(1)}px 0; }
-  .job, .project, .edu { margin-bottom: ${(8 * sp).toFixed(1)}px; }
-  .role, .projectName { font-weight: 700; margin: ${(6 * sp).toFixed(1)}px 0 1px; font-size: ${(12 * s).toFixed(2)}pt; }
-  .meta, .stack { color: #444; margin: 1px 0 ${(3 * sp).toFixed(1)}px; font-size: ${(11 * s).toFixed(2)}pt; }
-  .eduDegree { margin: ${(3 * sp).toFixed(1)}px 0; font-size: ${(11.5 * s).toFixed(2)}pt; }
-  .eduDetail { color: #444; }
-  .eduNote { font-style: italic; color: #555; margin-top: ${(5 * sp).toFixed(1)}px; font-size: ${(11 * s).toFixed(2)}pt; }
-  .addl { margin: ${(3 * sp).toFixed(1)}px 0; }
-</style>
+<style>${templateStyle(template, s, sp)}</style>
 </head>
 <body>
   <header>
@@ -153,28 +178,45 @@ function buildHtml(r, scale = 1) {
     <p class="cert">${escape(r.cert)}</p>
   </header>
   <hr class="rule" />
-
-  <h2>Professional Summary</h2>
-  <p>${escape(r.summary)}</p>
-
-  <h2>Technical Skills</h2>
-  ${skillsHtml}
-
-  <h2>Professional Experience</h2>
-  ${expHtml}
-
-  <h2>Key Projects</h2>
-  ${projHtml}
-
-  <h2>Education</h2>
-  ${eduHtml}
-  <p class="eduNote">${escape(r.educationNote)}</p>
-
-  <h2>Certifications &amp; Languages</h2>
-  <ul>${certsHtml}</ul>
-  ${additionalHtml}
+${bodyLayout(template, { skillsHtml, expHtml, projHtml, eduHtml, certsHtml, additionalHtml, summary: escape(r.summary), eduNote: escape(r.educationNote) })}
 </body>
 </html>`;
+}
+
+// Section blocks assembled per template. Two-column wraps skills/education/certs
+// into a sidebar and summary/experience/projects into the main column; the other
+// templates keep the original single flow so their 2-page auto-fit is unchanged.
+function bodyLayout(template, S) {
+  const summary = `<h2>Professional Summary</h2>\n  <p>${S.summary}</p>`;
+  const skills = `<h2>Technical Skills</h2>\n  ${S.skillsHtml}`;
+  const experience = `<h2>Professional Experience</h2>\n  ${S.expHtml}`;
+  const projects = `<h2>Key Projects</h2>\n  ${S.projHtml}`;
+  const education = `<h2>Education</h2>\n  ${S.eduHtml}\n  <p class="eduNote">${S.eduNote}</p>`;
+  const certs = `<h2>Certifications &amp; Languages</h2>\n  <ul>${S.certsHtml}</ul>\n  ${S.additionalHtml}`;
+
+  if (template === 'twocolumn') {
+    return `
+  <div class="twocol">
+    <aside class="sidebar">
+      ${skills}
+      ${education}
+      ${certs}
+    </aside>
+    <main class="maincol">
+      ${summary}
+      ${experience}
+      ${projects}
+    </main>
+  </div>`;
+  }
+  // classic / ats — single flow
+  return `
+  ${summary}
+  ${skills}
+  ${experience}
+  ${projects}
+  ${education}
+  ${certs}`;
 }
 
 // ---------- PDF (Puppeteer) with 2-page auto-fit ----------
@@ -203,7 +245,7 @@ async function renderAndCount(page, html) {
 // Auto-fit to <= 2 pages by stepping the scale down. Returns the fitted buffer
 // plus metadata so callers can warn the user if it still overflows at min scale.
 // Never drops content — only compresses spacing/font within a safe range.
-async function fitPdf(r) {
+async function fitPdf(r, template = 'classic') {
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -212,7 +254,7 @@ async function fitPdf(r) {
     const page = await browser.newPage();
     let last = null;
     for (const scale of SCALE_STEPS) {
-      const res = await renderAndCount(page, buildHtml(r, scale));
+      const res = await renderAndCount(page, buildHtml(r, scale, template));
       last = { ...res, scale };
       if (res.pages <= MAX_PAGES) {
         return { buffer: res.buffer, pages: res.pages, scale, fit: true };
@@ -226,15 +268,15 @@ async function fitPdf(r) {
 }
 
 // Backwards-compatible: return just the fitted PDF buffer.
-async function buildPdf(r) {
-  const { buffer } = await fitPdf(r);
+async function buildPdf(r, template = 'classic') {
+  const { buffer } = await fitPdf(r, template);
   return buffer;
 }
 
 // Measure page count without keeping the PDF — used by the live preview badge.
 // Returns { pages, scale, fit } describing the best fit found.
-async function measurePages(r) {
-  const { pages, scale, fit } = await fitPdf(r);
+async function measurePages(r, template = 'classic') {
+  const { pages, scale, fit } = await fitPdf(r, template);
   return { pages, scale, fit };
 }
 
@@ -388,4 +430,4 @@ function bullet(text, opts = {}) {
   });
 }
 
-module.exports = { buildHtml, buildPdf, buildDocx, fitPdf, measurePages, MAX_PAGES };
+module.exports = { buildHtml, buildPdf, buildDocx, fitPdf, measurePages, MAX_PAGES, TEMPLATES };

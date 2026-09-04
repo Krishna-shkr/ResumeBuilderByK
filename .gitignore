@@ -4,3 +4,4 @@ out/
 *.log
 test-results/
 playwright-report/
+.cache/

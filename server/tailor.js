@@ -28,7 +28,7 @@ const CHAIN = [
   { provider: 'openrouter', model: 'google/gemma-4-26b-a4b-it:free' },
   { provider: 'openrouter', model: 'google/gemma-4-31b-it:free' },
   { provider: 'openrouter', model: 'nvidia/nemotron-3-ultra-550b-a55b:free' },
-  { provider: 'openrouter', model: 'nvidia/nemotron-nano-9b-v2:free' },
+  { provider: 'openrouter', model: 'nvidia/nemotron-3.5-lightning:free' },
 ];
 
 // The set of concrete choices a user may force from the UI (Auto = the full chain).
@@ -67,6 +67,13 @@ ABSOLUTE RULES — violating any of these produces an unusable result:
 4. You MAY: rephrase the summary and each bullet to emphasize aspects relevant
    to the job description; reorder skill tokens WITHIN a category to put the most
    JD-relevant ones first (but do not add tokens); tighten wording.
+   IMPORTANT — the PROFESSIONAL SUMMARY: rewrite it substantially so it clearly
+   speaks to THIS job. Lead with the candidate's strengths that best match the
+   job description, foreground the most relevant real experience and
+   technologies, and drop or de-emphasize details irrelevant to this role. It
+   should read as if written for this specific posting — while staying 100%
+   truthful and using only skills/experience already in the resume. Do NOT just
+   reword one clause; genuinely re-focus the whole summary.
 5. Only use technologies/terms from this allowed list (case-insensitive). Do NOT
    introduce any term outside it:
    ${Array.from(knownTokens).join(', ')}

@@ -19,6 +19,7 @@ let resume = null;          // working copy (source of truth for edits)
 let pendingTailored = null; // awaiting diff approval
 let pendingHidden = [];      // AI hide-suggestions awaiting approval
 let dirty = false;
+let currentTemplate = 'classic'; // download/preview design
 
 /* ---------- fetch helper ---------- */
 async function api(path, opts) {
@@ -71,6 +72,30 @@ async function load() {
   setSaveState('saved', 'Saved');
   schedulePreview(0);
   loadModels();
+  loadTemplates();
+}
+
+// Populate the template selector and remember the choice (per-browser).
+async function loadTemplates() {
+  const sel = $('#templateSelect');
+  const LABELS = { classic: 'Classic', twocolumn: 'Two-column', ats: 'ATS-plain' };
+  try {
+    const { templates } = await (await api('/api/templates')).json();
+    sel.innerHTML = '';
+    templates.forEach((t) => {
+      const o = document.createElement('option');
+      o.value = t; o.textContent = LABELS[t] || t; sel.appendChild(o);
+    });
+    let saved = 'classic';
+    try { saved = localStorage.getItem('rt-template') || 'classic'; } catch (_) {}
+    if (templates.includes(saved)) currentTemplate = saved;
+    sel.value = currentTemplate;
+  } catch (_) { /* keep default */ }
+  sel.addEventListener('change', () => {
+    currentTemplate = sel.value;
+    try { localStorage.setItem('rt-template', currentTemplate); } catch (_) {}
+    schedulePreview(0); // re-render preview + badge in the chosen template
+  });
 }
 
 function renderAll() {
@@ -123,21 +148,34 @@ function renderSkills() {
   const wrap = $('#skills'); wrap.innerHTML = '';
   resume.skills.forEach((pair, i) => {
     const g = document.createElement('div'); g.className = 'skill-group';
-    const label = document.createElement('div'); label.className = 'skill-group-label'; label.textContent = pair[0];
+    const head = document.createElement('div'); head.className = 'skill-group-head';
+    const label = document.createElement('input'); label.className = 'skill-group-label-input';
+    label.value = pair[0]; label.placeholder = 'Category'; label.setAttribute('aria-label', 'Skill category name');
+    label.addEventListener('input', () => { resume.skills[i][0] = label.value; markDirty(); schedulePreview(); });
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'inline-del';
+    del.title = 'Remove category'; del.innerHTML = '&times;';
+    del.addEventListener('click', () => { resume.skills.splice(i, 1); renderSkills(); updateCounts(); markDirty(); schedulePreview(); });
+    head.append(label, del);
     const ta = document.createElement('textarea'); ta.className = 'grow'; ta.rows = 2; ta.value = pair[1];
-    ta.setAttribute('aria-label', pair[0] + ' skills');
+    ta.placeholder = 'Comma-separated skills'; ta.setAttribute('aria-label', pair[0] + ' skills');
     ta.addEventListener('input', () => { resume.skills[i][1] = ta.value; autoGrow(ta); renderChips(); markDirty(); schedulePreview(); });
     const chips = document.createElement('div'); chips.className = 'chips';
-    g.append(label, ta, chips); g._chips = chips; wrap.appendChild(g);
+    g.append(head, ta, chips); g._chips = chips; wrap.appendChild(g);
+    requestAnimationFrame(() => autoGrow(ta));
   });
   const hint = document.createElement('div'); hint.className = 'chip-hint';
   hint.textContent = 'Click a chip to hide that tech from the resume (reversible). Struck-through = hidden.';
   wrap.appendChild(hint);
+  wrap.appendChild(addButton('+ Add skill category', () => {
+    resume.skills.push(['', '']); renderSkills(); updateCounts(); markDirty(); schedulePreview();
+    wrap.querySelector('.skill-group:last-of-type input')?.focus();
+  }));
   renderChips();
 }
 function renderChips() {
+  const groups = $$('#skills .skill-group');
   resume.skills.forEach((pair, i) => {
-    const g = $('#skills').children[i]; if (!g || !g._chips) return;
+    const g = groups[i]; if (!g || !g._chips) return;
     const chips = g._chips; chips.innerHTML = '';
     String(pair[1]).split(/\s*,\s*/).map((t) => t.trim()).filter(Boolean).forEach((tok) => {
       const c = document.createElement('button'); c.type = 'button';
@@ -151,37 +189,98 @@ function renderChips() {
 }
 
 /* ============================================================
-   Experience / Projects — locked identity, editable bullets,
-   drag-reorder + add/remove bullets.
+   Editable-entry helpers — every field is editable; entries can be
+   added or removed. (Your manual edits are unrestricted; the AI's
+   "no invented experience" guard still applies only when tailoring.)
    ============================================================ */
+
+// A labeled text input bound to obj[key], live-updating preview.
+function fieldInput(label, obj, key, opts = {}) {
+  const f = document.createElement('div'); f.className = 'field';
+  const l = document.createElement('label'); l.textContent = label;
+  const inp = document.createElement(opts.textarea ? 'textarea' : 'input');
+  if (opts.textarea) { inp.className = 'grow'; inp.rows = 1; }
+  inp.value = obj[key] != null ? obj[key] : '';
+  inp.placeholder = opts.placeholder || '';
+  inp.setAttribute('aria-label', label);
+  inp.addEventListener('input', () => {
+    obj[key] = inp.value; if (opts.textarea) autoGrow(inp);
+    if (opts.onInput) opts.onInput(); markDirty(); schedulePreview();
+  });
+  f.append(l, inp);
+  if (opts.textarea) requestAnimationFrame(() => autoGrow(inp));
+  return f;
+}
+
+// Header row for an entry card: a title + a "remove entry" button.
+function entryBar(title, onRemove) {
+  const bar = document.createElement('div'); bar.className = 'entry-bar';
+  const t = document.createElement('span'); t.className = 'entry-kicker'; t.textContent = title;
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'entry-del';
+  del.title = 'Remove this entry'; del.innerHTML = '&times;';
+  del.addEventListener('click', onRemove);
+  bar.append(t, del);
+  return bar;
+}
+
+// A dashed "+ Add …" button used to append a new entry to a section.
+function addButton(text, onAdd) {
+  const b = document.createElement('button'); b.type = 'button';
+  b.className = 'add-entry'; b.textContent = text;
+  b.addEventListener('click', onAdd);
+  return b;
+}
+
 function renderExperience() {
   const wrap = $('#experience'); wrap.innerHTML = '';
   resume.experience.forEach((e, i) => {
     const entry = document.createElement('div'); entry.className = 'entry';
-    const head = document.createElement('div'); head.className = 'entry-head';
-    head.innerHTML =
-      `<div><div class="entry-title">${esc(e.role)}</div>` +
-      `<div class="entry-meta">${esc(e.company)} · ${esc(e.location)} · ${esc(e.dates)}</div></div>` +
-      `<span class="lock" title="Role, employer &amp; dates are facts — not reworded">locked</span>`;
-    entry.appendChild(head);
-    entry.appendChild(buildBullets(e.bullets, (arr) => { resume.experience[i].bullets = arr; }));
+    entry.appendChild(entryBar('Role ' + (i + 1), () => {
+      resume.experience.splice(i, 1); renderExperience(); updateCounts(); markDirty(); schedulePreview();
+    }));
+    const grid = document.createElement('div'); grid.className = 'field-grid';
+    grid.append(
+      fieldInput('Role', e, 'role'),
+      fieldInput('Company', e, 'company'),
+      fieldInput('Location', e, 'location'),
+      fieldInput('Dates', e, 'dates', { placeholder: 'e.g. Jan 2024 – Present' }),
+    );
+    entry.appendChild(grid);
+    const bl = document.createElement('div'); bl.className = 'field';
+    bl.appendChild(Object.assign(document.createElement('label'), { textContent: 'Bullets' }));
+    bl.appendChild(buildBullets(e.bullets, (arr) => { resume.experience[i].bullets = arr; }));
+    entry.appendChild(bl);
     wrap.appendChild(entry);
   });
+  wrap.appendChild(addButton('+ Add role', () => {
+    resume.experience.push({ role: '', company: '', location: '', dates: '', bullets: [''] });
+    renderExperience(); updateCounts(); markDirty(); schedulePreview();
+    wrap.querySelector('.entry:last-of-type input')?.focus();
+  }));
 }
+
 function renderProjects() {
   const wrap = $('#projects'); wrap.innerHTML = '';
   resume.projects.forEach((p, i) => {
     const entry = document.createElement('div'); entry.className = 'entry';
-    const head = document.createElement('div'); head.className = 'entry-head';
-    head.innerHTML = `<div class="entry-title">${esc(p.name)}</div><span class="lock" title="Project name is fixed">name locked</span>`;
-    const stackField = document.createElement('div'); stackField.className = 'field';
-    const sl = document.createElement('label'); sl.textContent = 'Stack';
-    const si = document.createElement('input'); si.value = p.stack;
-    si.addEventListener('input', () => { resume.projects[i].stack = si.value; markDirty(); schedulePreview(); });
-    stackField.append(sl, si);
-    entry.append(head, stackField, buildBullets(p.bullets, (arr) => { resume.projects[i].bullets = arr; }));
+    entry.appendChild(entryBar('Project ' + (i + 1), () => {
+      resume.projects.splice(i, 1); renderProjects(); updateCounts(); markDirty(); schedulePreview();
+    }));
+    entry.append(
+      fieldInput('Project name', p, 'name'),
+      fieldInput('Stack', p, 'stack', { placeholder: 'e.g. .NET Core · Node.js · Azure' }),
+    );
+    const bl = document.createElement('div'); bl.className = 'field';
+    bl.appendChild(Object.assign(document.createElement('label'), { textContent: 'Bullets' }));
+    bl.appendChild(buildBullets(p.bullets, (arr) => { resume.projects[i].bullets = arr; }));
+    entry.appendChild(bl);
     wrap.appendChild(entry);
   });
+  wrap.appendChild(addButton('+ Add project', () => {
+    resume.projects.push({ name: '', stack: '', bullets: [''] });
+    renderProjects(); updateCounts(); markDirty(); schedulePreview();
+    wrap.querySelector('.entry:last-of-type input')?.focus();
+  }));
 }
 
 // Build a reorderable, editable bullet list. `commit(newArray)` writes back.
@@ -233,33 +332,62 @@ let dragFrom = null;
    ============================================================ */
 function renderEducation() {
   const wrap = $('#education'); wrap.innerHTML = '';
-  resume.education.forEach((e) => {
+  resume.education.forEach((e, i) => {
     const entry = document.createElement('div'); entry.className = 'entry';
-    entry.innerHTML =
-      `<div class="entry-head"><div><div class="entry-title">${esc(e.degree)}</div>` +
-      `<div class="entry-meta">${esc(e.school)} · ${esc(e.detail)}</div></div>` +
-      `<span class="lock" title="Factual — not edited">locked</span></div>`;
+    entry.appendChild(entryBar('Education ' + (i + 1), () => {
+      resume.education.splice(i, 1); renderEducation(); updateCounts(); markDirty(); schedulePreview();
+    }));
+    entry.append(
+      fieldInput('Degree', e, 'degree'),
+      fieldInput('School', e, 'school'),
+      fieldInput('Detail', e, 'detail', { placeholder: 'e.g. CGPA: 7.5 / 10 · 2020 – 2023' }),
+    );
     wrap.appendChild(entry);
   });
+  wrap.appendChild(addButton('+ Add education', () => {
+    resume.education.push({ degree: '', school: '', detail: '' });
+    renderEducation(); updateCounts(); markDirty(); schedulePreview();
+    wrap.querySelector('.entry:last-of-type input')?.focus();
+  }));
 }
+
 function renderCertifications() {
   const wrap = $('#certifications'); wrap.innerHTML = '';
   resume.certifications.forEach((c, i) => {
-    const f = document.createElement('div'); f.className = 'field';
-    const inp = document.createElement('input'); inp.value = c; inp.setAttribute('aria-label', 'Certification ' + (i + 1));
+    const row = document.createElement('div'); row.className = 'inline-row';
+    const inp = document.createElement('input'); inp.value = c;
+    inp.setAttribute('aria-label', 'Certification ' + (i + 1));
     inp.addEventListener('input', () => { resume.certifications[i] = inp.value; markDirty(); schedulePreview(); });
-    f.appendChild(inp); wrap.appendChild(f);
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'inline-del';
+    del.title = 'Remove'; del.innerHTML = '&times;';
+    del.addEventListener('click', () => { resume.certifications.splice(i, 1); renderCertifications(); updateCounts(); markDirty(); schedulePreview(); });
+    row.append(inp, del); wrap.appendChild(row);
   });
+  wrap.appendChild(addButton('+ Add certification', () => {
+    resume.certifications.push(''); renderCertifications(); updateCounts(); markDirty(); schedulePreview();
+    wrap.querySelector('.inline-row:last-of-type input')?.focus();
+  }));
 }
+
 function renderAdditional() {
   const wrap = $('#additional'); wrap.innerHTML = '';
   resume.additional.forEach((pair, i) => {
-    const f = document.createElement('div'); f.className = 'field';
-    const l = document.createElement('label'); l.textContent = pair[0];
-    const inp = document.createElement('input'); inp.value = pair[1]; inp.setAttribute('aria-label', pair[0]);
-    inp.addEventListener('input', () => { resume.additional[i][1] = inp.value; markDirty(); schedulePreview(); });
-    f.append(l, inp); wrap.appendChild(f);
+    const row = document.createElement('div'); row.className = 'inline-row inline-row--pair';
+    const key = document.createElement('input'); key.className = 'inline-key'; key.value = pair[0];
+    key.placeholder = 'Label'; key.setAttribute('aria-label', 'Label ' + (i + 1));
+    key.addEventListener('input', () => { resume.additional[i][0] = key.value; markDirty(); schedulePreview(); });
+    const val = document.createElement('input'); val.value = pair[1];
+    val.placeholder = 'Value'; val.setAttribute('aria-label', 'Value ' + (i + 1));
+    val.addEventListener('input', () => { resume.additional[i][1] = val.value; markDirty(); schedulePreview(); });
+    const del = document.createElement('button'); del.type = 'button'; del.className = 'inline-del';
+    del.title = 'Remove'; del.innerHTML = '&times;';
+    del.addEventListener('click', () => { resume.additional.splice(i, 1); renderAdditional(); markDirty(); schedulePreview(); });
+    row.append(key, val, del); wrap.appendChild(row);
   });
+  wrap.appendChild(addButton('+ Add row', () => {
+    resume.additional.push(['', '']); renderAdditional(); markDirty(); schedulePreview();
+    wrap.querySelector('.inline-row:last-of-type input')?.focus();
+  }));
 }
 
 /* ---------- card counts ---------- */
@@ -294,7 +422,7 @@ async function renderPreview() {
   const myReq = ++previewReq;
   $('#previewLoading').hidden = false;
   try {
-    const html = await (await api('/api/preview', jsonBody(resume))).text();
+    const html = await (await api('/api/preview?template=' + currentTemplate, jsonBody(resume))).text();
     if (myReq !== previewReq) return;
     const frame = $('#preview');
     frame.srcdoc = html;
@@ -353,7 +481,7 @@ async function checkPages() {
   const myReq = ++pageReq;
   badge.className = 'page-badge is-loading'; txt.textContent = 'Measuring…';
   try {
-    const d = await (await api('/api/pagecount', jsonBody(resume))).json();
+    const d = await (await api('/api/pagecount?template=' + currentTemplate, jsonBody(resume))).json();
     if (myReq !== pageReq) return;
     if (d.fit && d.scale >= 0.999) {
       badge.className = 'page-badge ok'; txt.textContent = `Fits · ${d.pages}/${d.maxPages} pages`;
@@ -436,6 +564,33 @@ async function tailor() {
   }
 }
 $('#tailorBtn').addEventListener('click', tailor);
+
+// Fetch a JD from a job link into the textarea (best-effort; many sites block bots).
+async function fetchJd() {
+  const url = $('#jdUrl').value.trim();
+  const btn = $('#fetchJdBtn');
+  const note = $('#jdFetchNote');
+  if (!url) { toast('Paste a job link first.', 'err'); $('#jdUrl').focus(); return; }
+  if (btn.classList.contains('is-busy')) return;
+  btn.classList.add('is-busy'); btn.disabled = true;
+  note.hidden = true; note.className = 'jd-fetch-note';
+  try {
+    const data = await (await api('/api/fetch-jd', jsonBody({ url }))).json();
+    $('#jd').value = data.text;
+    note.hidden = false; note.classList.add('ok');
+    note.textContent = 'Fetched the job description — review it below, then Tailor.';
+    $('#jd').focus();
+  } catch (e) {
+    note.hidden = false; note.classList.add('warn');
+    // BLOCKED / TOO_SHORT (422) get a friendly "paste instead" message from the server.
+    note.textContent = e.message || 'Could not fetch that link — paste the job description below instead.';
+    $('#jd').focus();
+  } finally {
+    btn.classList.remove('is-busy'); btn.disabled = false;
+  }
+}
+$('#fetchJdBtn').addEventListener('click', fetchJd);
+$('#jdUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); fetchJd(); } });
 
 /* ============================================================
    Diff review — word-level, grouped by section
@@ -565,7 +720,7 @@ async function exportAs(format, btn) {
   if (btn.classList.contains('is-busy')) return;
   btn.classList.add('is-busy'); btn.disabled = true;
   try {
-    const res = await api('/api/export', jsonBody({ resume, format }));
+    const res = await api('/api/export', jsonBody({ resume, format, template: currentTemplate }));
     const pages = res.headers.get('X-Resume-Pages');
     const fit = res.headers.get('X-Resume-Fit');
     const blob = await res.blob();
